@@ -1,0 +1,71 @@
+name: Feature
+description: Proposer une nouvelle fonctionnalité
+title: "[FEATURE] "
+labels: ["feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de détailler le besoin métier et la valeur attendue.
+
+  - type: input
+    id: goal
+    attributes:
+      label: Objectif
+      description: Quel est le besoin principal ?
+      placeholder: Exemple - Permettre l'export PDF des commandes
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problème actuel
+      description: Quel problème ou quelle limite rencontres-tu aujourd'hui ?
+      placeholder: Décris le problème actuel
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solution proposée
+      description: Décris la solution idéale
+      placeholder: Décris la fonctionnalité attendue
+    validations:
+      required: true
+
+  - type: textarea
+    id: business_value
+    attributes:
+      label: Valeur apportée
+      description: Quel gain pour les utilisateurs ou l'équipe ?
+      placeholder: Temps gagné, qualité, fiabilité, satisfaction utilisateur...
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priorité souhaitée
+      options:
+        - Low
+        - Medium
+        - High
+        - Critical
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Critères d'acceptation
+      description: Un point par ligne si possible
+      placeholder: |
+        - L'utilisateur peut ...
+        - Le système doit ...
+        - Le résultat attendu est ...
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives envisagées
+      placeholder: Décris les alternatives, contournements ou idées rejetées

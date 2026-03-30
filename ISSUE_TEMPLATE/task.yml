@@ -1,0 +1,63 @@
+name: Task
+description: Créer une tâche technique ou fonctionnelle
+title: "[TASK] "
+labels: ["task"]
+body:
+  - type: input
+    id: summary
+    attributes:
+      label: Tâche
+      description: Résume la tâche à réaliser
+      placeholder: Exemple - Ajouter la validation côté API
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Décris ce qui doit être fait
+      placeholder: Détaille la tâche
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - Tech
+        - Product
+        - Design
+        - Documentation
+        - DevOps
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priorité
+      options:
+        - Low
+        - Medium
+        - High
+        - Critical
+    validations:
+      required: true
+
+  - type: input
+    id: estimate
+    attributes:
+      label: Estimation
+      description: Taille approximative
+      placeholder: Exemple - 1d / 3 points / 2h
+
+  - type: textarea
+    id: done_definition
+    attributes:
+      label: Definition of Done
+      placeholder: |
+        - Code livré
+        - Tests passants
+        - Documentation mise à jour
