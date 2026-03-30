@@ -1,71 +1,62 @@
 name: Bug
-description: Signaler un bug
+description: Créer un bug et remplir automatiquement le project
 title: "[BUG] "
 labels: ["bug"]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Merci de remplir ce formulaire pour nous aider à reproduire et corriger le problème.
-
   - type: input
     id: summary
     attributes:
-      label: Résumé
-      description: Résume le bug en une phrase
-      placeholder: Exemple - Le bouton Enregistrer ne répond plus
-    validations:
-      required: true
-
-  - type: textarea
-    id: steps
-    attributes:
-      label: Étapes pour reproduire
-      description: Décris les étapes exactes
-      placeholder: |
-        1. Aller sur ...
-        2. Cliquer sur ...
-        3. Constater que ...
-    validations:
-      required: true
-
-  - type: textarea
-    id: expected
-    attributes:
-      label: Résultat attendu
-      placeholder: Décris le comportement attendu
-    validations:
-      required: true
-
-  - type: textarea
-    id: actual
-    attributes:
-      label: Résultat observé
-      placeholder: Décris le comportement actuel
+      label: Summary
+      placeholder: Exemple - Le bouton enregistrer ne fonctionne pas
     validations:
       required: true
 
   - type: dropdown
-    id: severity
+    id: status
     attributes:
-      label: Sévérité
+      label: Status
       options:
-        - Low
-        - Medium
-        - High
-        - Critical
+        - Todo
+        - In Progress
+        - Done
     validations:
       required: true
 
-  - type: input
-    id: environment
+  - type: dropdown
+    id: estimate
     attributes:
-      label: Environnement
-      description: Navigateur, OS, version, device, etc.
-      placeholder: Exemple - Chrome 135 / Windows 11
+      label: Estimate
+      options:
+        - "1"
+        - "2"
+        - "3"
+        - "5"
+        - "8"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - Bug
+        - Feature
+        - Task
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: options
+    attributes:
+      label: Options
+      options:
+        - label: Assign me automatically
 
   - type: textarea
-    id: additional
+    id: details
     attributes:
-      label: Informations complémentaires
-      placeholder: Logs, captures, contexte, liens...
+      label: Details
+      placeholder: Décris le problème
+    validations:
+      required: true

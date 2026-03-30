@@ -1,0 +1,255 @@
+name: Sync issue to project fields
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync-project:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Sync issue fields to GitHub Project
+        uses: actions/github-script@v7
+        env:
+          PROJECT_ID: ${{ secrets.PROJECT_ID }}
+          PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+        with:
+          github-token: ${{ env.PROJECTS_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+
+            if (!issue || !issue.body) {
+              core.setFailed("Issue body introuvable.");
+              return;
+            }
+
+            const projectId = process.env.PROJECT_ID;
+            if (!projectId) {
+              core.setFailed("Le secret PROJECT_ID est manquant.");
+              return;
+            }
+
+            function getSectionValue(body, label) {
+              const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const regex = new RegExp(`###\\s+${escaped}\\s*\\n+([\\s\\S]*?)(?=\\n###\\s+|$)`, "i");
+              const match = body.match(regex);
+              if (!match) return null;
+
+              const value = match[1].trim();
+              if (!value || value === "_No response_") return null;
+
+              return value;
+            }
+
+            function extractCheckboxChecked(body, sectionLabel, checkboxLabel) {
+              const section = getSectionValue(body, sectionLabel);
+              if (!section) return false;
+
+              const escapedCheckbox = checkboxLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const regex = new RegExp(`- \\[x\\]\\s+${escapedCheckbox}`, "i");
+              return regex.test(section);
+            }
+
+            const values = {
+              status: getSectionValue(issue.body, "Status"),
+              estimate: getSectionValue(issue.body, "Estimate"),
+              type: getSectionValue(issue.body, "Type"),
+              autoAssign: extractCheckboxChecked(issue.body, "Options", "Assign me automatically")
+            };
+
+            core.info(`Valeurs détectées: ${JSON.stringify(values, null, 2)}`);
+
+            // Assignation automatique seulement si la case est cochée
+            if (values.autoAssign) {
+              try {
+                await github.rest.issues.addAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  assignees: [context.actor]
+                });
+                core.info(`Issue assignée à ${context.actor}`);
+              } catch (error) {
+                core.warning(`Impossible d'assigner ${context.actor}: ${error.message}`);
+              }
+            } else {
+              core.info("Assignation ignorée : case non cochée.");
+            }
+
+            const issueNodeId = issue.node_id;
+
+            async function ensureProjectItem() {
+              const existingItemsQuery = `
+                query($projectId: ID!) {
+                  node(id: $projectId) {
+                    ... on ProjectV2 {
+                      items(first: 100) {
+                        nodes {
+                          id
+                          content {
+                            ... on Issue {
+                              id
+                              number
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+
+              const existingItems = await github.graphql(existingItemsQuery, { projectId });
+              const found = existingItems.node.items.nodes.find(
+                item => item.content && item.content.id === issueNodeId
+              );
+
+              if (found) {
+                core.info(\`Item déjà présent dans le project: \${found.id}\`);
+                return found.id;
+              }
+
+              const addItemMutation = `
+                mutation($projectId: ID!, $contentId: ID!) {
+                  addProjectV2ItemById(input: {
+                    projectId: $projectId,
+                    contentId: $contentId
+                  }) {
+                    item {
+                      id
+                    }
+                  }
+                }
+              `;
+
+              const added = await github.graphql(addItemMutation, {
+                projectId,
+                contentId: issueNodeId
+              });
+
+              core.info(\`Item ajouté au project: \${added.addProjectV2ItemById.item.id}\`);
+              return added.addProjectV2ItemById.item.id;
+            }
+
+            const itemId = await ensureProjectItem();
+
+            const fieldsQuery = `
+              query($projectId: ID!) {
+                node(id: $projectId) {
+                  ... on ProjectV2 {
+                    fields(first: 50) {
+                      nodes {
+                        __typename
+                        ... on ProjectV2FieldCommon {
+                          id
+                          name
+                        }
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options {
+                            id
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const fieldsResult = await github.graphql(fieldsQuery, { projectId });
+            const fields = fieldsResult.node.fields.nodes;
+
+            function findField(name) {
+              return fields.find(f => f.name && f.name.toLowerCase() === name.toLowerCase());
+            }
+
+            async function updateSingleSelect(fieldName, optionName) {
+              if (!optionName) return;
+
+              const field = findField(fieldName);
+              if (!field || !field.options) {
+                core.warning(\`Champ single select '\${fieldName}' introuvable.\`);
+                return;
+              }
+
+              const option = field.options.find(
+                o => o.name.toLowerCase() === optionName.toLowerCase()
+              );
+
+              if (!option) {
+                core.warning(\`Option '\${optionName}' introuvable pour '\${fieldName}'.\`);
+                return;
+              }
+
+              await github.graphql(`
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId,
+                    itemId: $itemId,
+                    fieldId: $fieldId,
+                    value: { singleSelectOptionId: $optionId }
+                  }) {
+                    projectV2Item {
+                      id
+                    }
+                  }
+                }
+              `, {
+                projectId,
+                itemId,
+                fieldId: field.id,
+                optionId: option.id
+              });
+
+              core.info(\`\${fieldName} = \${optionName}\`);
+            }
+
+            async function updateNumber(fieldName, numberValue) {
+              if (!numberValue) return;
+
+              const field = findField(fieldName);
+              if (!field) {
+                core.warning(\`Champ '\${fieldName}' introuvable.\`);
+                return;
+              }
+
+              const parsed = Number(numberValue);
+              if (Number.isNaN(parsed)) {
+                core.warning(\`Valeur numérique invalide pour '\${fieldName}': \${numberValue}\`);
+                return;
+              }
+
+              await github.graphql(`
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: Float!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId,
+                    itemId: $itemId,
+                    fieldId: $fieldId,
+                    value: { number: $value }
+                  }) {
+                    projectV2Item {
+                      id
+                    }
+                  }
+                }
+              `, {
+                projectId,
+                itemId,
+                fieldId: field.id,
+                value: parsed
+              });
+
+              core.info(\`\${fieldName} = \${parsed}\`);
+            }
+
+            await updateSingleSelect("Status", values.status);
+            await updateNumber("Estimate", values.estimate);
+            await updateSingleSelect("Type", values.type);
