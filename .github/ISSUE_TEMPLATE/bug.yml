@@ -1,5 +1,5 @@
 name: Bug
-description: Créer un bug et remplir automatiquement le project
+description: Signaler un bug
 title: "[BUG] "
 labels: ["bug"]
 body:
@@ -32,19 +32,40 @@ body:
         - "3"
         - "5"
         - "8"
+        - "13"
     validations:
       required: true
 
   - type: dropdown
-    id: type
+    id: priority
     attributes:
-      label: Type
+      label: Priority
       options:
-        - Bug
-        - Feature
-        - Task
+        - P0
+        - P1
+        - P2
+        - P3
     validations:
       required: true
+
+  - type: input
+    id: sprint
+    attributes:
+      label: Sprint
+      placeholder: Exemple - Sprint 1
+      description: Doit correspondre exactement au nom d'itération du project
+
+  - type: input
+    id: start_date
+    attributes:
+      label: Start date
+      placeholder: YYYY-MM-DD
+
+  - type: input
+    id: target_date
+    attributes:
+      label: Target date
+      placeholder: YYYY-MM-DD
 
   - type: checkboxes
     id: options
@@ -57,6 +78,6 @@ body:
     id: details
     attributes:
       label: Details
-      placeholder: Décris le problème
+      placeholder: Décris précisément le bug
     validations:
       required: true

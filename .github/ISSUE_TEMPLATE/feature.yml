@@ -1,21 +1,71 @@
 name: Feature
 description: Proposer une nouvelle fonctionnalité
 title: "[FEATURE] "
-labels: ["feature"]
+labels: ["enhancement"]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Merci de détailler le besoin métier et la valeur attendue.
-
   - type: input
-    id: goal
+    id: summary
     attributes:
-      label: Objectif
-      description: Quel est le besoin principal ?
-      placeholder: Exemple - Permettre l'export PDF des commandes
+      label: Summary
+      placeholder: Exemple - Ajouter l'export PDF
     validations:
       required: true
+
+  - type: dropdown
+    id: status
+    attributes:
+      label: Status
+      options:
+        - Todo
+        - In Progress
+        - Done
+    validations:
+      required: true
+
+  - type: dropdown
+    id: estimate
+    attributes:
+      label: Estimate
+      options:
+        - "1"
+        - "2"
+        - "3"
+        - "5"
+        - "8"
+        - "13"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - P0
+        - P1
+        - P2
+        - P3
+    validations:
+      required: true
+
+  - type: input
+    id: sprint
+    attributes:
+      label: Sprint
+      placeholder: Exemple - Sprint 1
+      description: Doit correspondre exactement au nom d'itération du project
+
+  - type: input
+    id: start_date
+    attributes:
+      label: Start date
+      placeholder: YYYY-MM-DD
+
+  - type: input
+    id: target_date
+    attributes:
+      label: Target date
+      placeholder: YYYY-MM-DD
 
   - type: checkboxes
     id: options
@@ -25,54 +75,9 @@ body:
         - label: Assign me automatically
 
   - type: textarea
-    id: problem
+    id: details
     attributes:
-      label: Problème actuel
-      description: Quel problème ou quelle limite rencontres-tu aujourd'hui ?
-      placeholder: Décris le problème actuel
+      label: Details
+      placeholder: Décris le besoin et la valeur attendue
     validations:
       required: true
-
-  - type: textarea
-    id: solution
-    attributes:
-      label: Solution proposée
-      description: Décris la solution idéale
-      placeholder: Décris la fonctionnalité attendue
-    validations:
-      required: true
-
-  - type: textarea
-    id: business_value
-    attributes:
-      label: Valeur apportée
-      description: Quel gain pour les utilisateurs ou l'équipe ?
-      placeholder: Temps gagné, qualité, fiabilité, satisfaction utilisateur...
-
-  - type: dropdown
-    id: priority
-    attributes:
-      label: Priorité souhaitée
-      options:
-        - Low
-        - Medium
-        - High
-        - Critical
-    validations:
-      required: true
-
-  - type: textarea
-    id: acceptance_criteria
-    attributes:
-      label: Critères d'acceptation
-      description: Un point par ligne si possible
-      placeholder: |
-        - L'utilisateur peut ...
-        - Le système doit ...
-        - Le résultat attendu est ...
-
-  - type: textarea
-    id: alternatives
-    attributes:
-      label: Alternatives envisagées
-      placeholder: Décris les alternatives, contournements ou idées rejetées
