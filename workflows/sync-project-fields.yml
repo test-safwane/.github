@@ -99,42 +99,29 @@ jobs:
 
             const issueNodeId = issue.node_id;
 
-            async function validateProjectId() {
-              try {
-                const result = await github.graphql(`
-                  query($projectId: ID!) {
-                    node(id: $projectId) {
-                      __typename
-                      ... on ProjectV2 {
-                        id
-                        title
-                      }
-                    }
+            const projectCheck = await github.graphql(`
+              query($projectId: ID!) {
+                node(id: $projectId) {
+                  __typename
+                  ... on ProjectV2 {
+                    id
+                    title
                   }
-                `, { projectId });
-
-                if (!result.node) {
-                  core.setFailed(`PROJECT_ID invalide ou inaccessible: ${projectId}`);
-                  return null;
                 }
-
-                if (result.node.__typename !== "ProjectV2") {
-                  core.setFailed(`L'ID fourni n'est pas un ProjectV2. Type reçu: ${result.node.__typename}`);
-                  return null;
-                }
-
-                core.info(`Projet validé: ${result.node.title} (${result.node.id})`);
-                return result.node;
-              } catch (error) {
-                core.setFailed(`Impossible de résoudre PROJECT_ID (${projectId}): ${error.message}`);
-                return null;
               }
-            }
+            `, { projectId });
 
-            const projectNode = await validateProjectId();
-            if (!projectNode) {
+            if (!projectCheck.node) {
+              core.setFailed(`PROJECT_ID invalide ou inaccessible: ${projectId}`);
               return;
             }
+
+            if (projectCheck.node.__typename !== "ProjectV2") {
+              core.setFailed(`L'ID fourni n'est pas un ProjectV2. Type reçu: ${projectCheck.node.__typename}`);
+              return;
+            }
+
+            core.info(`Projet validé: ${projectCheck.node.title} (${projectCheck.node.id})`);
 
             async function ensureProjectItem() {
               const existingItemsQuery = `
