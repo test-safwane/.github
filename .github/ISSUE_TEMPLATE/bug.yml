@@ -44,7 +44,6 @@ body:
         - P0
         - P1
         - P2
-        - P3
     validations:
       required: true
 
@@ -53,19 +52,21 @@ body:
     attributes:
       label: Sprint
       placeholder: Exemple - Sprint 1
-      description: Doit correspondre exactement au nom d'itération du project
+      description: Laisse vide si tu veux utiliser automatiquement le sprint actif
 
   - type: input
     id: start_date
     attributes:
       label: Start date
       placeholder: YYYY-MM-DD
+      description: Laisse vide si tu veux utiliser automatiquement la date du jour
 
   - type: input
     id: target_date
     attributes:
       label: Target date
       placeholder: YYYY-MM-DD
+      description: Laisse vide si tu veux utiliser automatiquement la date du jour
 
   - type: checkboxes
     id: options
@@ -73,6 +74,8 @@ body:
       label: Options
       options:
         - label: Assign me automatically
+        - label: Use active sprint
+        - label: Use today's date for start and target date
 
   - type: textarea
     id: details
