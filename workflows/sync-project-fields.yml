@@ -19,20 +19,37 @@ jobs:
           PROJECT_ID: ${{ secrets.PROJECT_ID }}
           PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
         with:
-          github-token: ${{ env.PROJECTS_TOKEN }}
+          github-token: ${{ secrets.PROJECTS_TOKEN }}
           script: |
             const issue = context.payload.issue;
 
-            if (!issue || !issue.body) {
+            core.info("Début du script");
+
+            if (!issue) {
+              core.setFailed("Issue introuvable.");
+              return;
+            }
+
+            if (!issue.body) {
               core.setFailed("Issue body introuvable.");
               return;
             }
 
-            const projectId = process.env.PROJECT_ID;
+            const projectId = (process.env.PROJECT_ID || "").trim();
             if (!projectId) {
               core.setFailed("Le secret PROJECT_ID est manquant.");
               return;
             }
+
+            if (!process.env.PROJECTS_TOKEN) {
+              core.setFailed("Le secret PROJECTS_TOKEN est manquant.");
+              return;
+            }
+
+            core.info(`Issue #${issue.number}`);
+            core.info(`Actor: ${context.actor}`);
+            core.info(`Project ID reçu: ${projectId}`);
+            core.info(`Body:\n${issue.body}`);
 
             function getSectionValue(body, label) {
               const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -64,7 +81,6 @@ jobs:
 
             core.info(`Valeurs détectées: ${JSON.stringify(values, null, 2)}`);
 
-            // Assignation automatique seulement si la case est cochée
             if (values.autoAssign) {
               try {
                 await github.rest.issues.addAssignees({
@@ -82,6 +98,43 @@ jobs:
             }
 
             const issueNodeId = issue.node_id;
+
+            async function validateProjectId() {
+              try {
+                const result = await github.graphql(`
+                  query($projectId: ID!) {
+                    node(id: $projectId) {
+                      __typename
+                      ... on ProjectV2 {
+                        id
+                        title
+                      }
+                    }
+                  }
+                `, { projectId });
+
+                if (!result.node) {
+                  core.setFailed(`PROJECT_ID invalide ou inaccessible: ${projectId}`);
+                  return null;
+                }
+
+                if (result.node.__typename !== "ProjectV2") {
+                  core.setFailed(`L'ID fourni n'est pas un ProjectV2. Type reçu: ${result.node.__typename}`);
+                  return null;
+                }
+
+                core.info(`Projet validé: ${result.node.title} (${result.node.id})`);
+                return result.node;
+              } catch (error) {
+                core.setFailed(`Impossible de résoudre PROJECT_ID (${projectId}): ${error.message}`);
+                return null;
+              }
+            }
+
+            const projectNode = await validateProjectId();
+            if (!projectNode) {
+              return;
+            }
 
             async function ensureProjectItem() {
               const existingItemsQuery = `
@@ -110,7 +163,7 @@ jobs:
               );
 
               if (found) {
-                core.info(\`Item déjà présent dans le project: \${found.id}\`);
+                core.info(`Item déjà présent dans le project: ${found.id}`);
                 return found.id;
               }
 
@@ -132,7 +185,7 @@ jobs:
                 contentId: issueNodeId
               });
 
-              core.info(\`Item ajouté au project: \${added.addProjectV2ItemById.item.id}\`);
+              core.info(`Item ajouté au project: ${added.addProjectV2ItemById.item.id}`);
               return added.addProjectV2ItemById.item.id;
             }
 
@@ -167,16 +220,21 @@ jobs:
             const fieldsResult = await github.graphql(fieldsQuery, { projectId });
             const fields = fieldsResult.node.fields.nodes;
 
+            core.info(`Fields trouvés: ${JSON.stringify(fields, null, 2)}`);
+
             function findField(name) {
               return fields.find(f => f.name && f.name.toLowerCase() === name.toLowerCase());
             }
 
             async function updateSingleSelect(fieldName, optionName) {
-              if (!optionName) return;
+              if (!optionName) {
+                core.warning(`Aucune valeur pour ${fieldName}`);
+                return;
+              }
 
               const field = findField(fieldName);
               if (!field || !field.options) {
-                core.warning(\`Champ single select '\${fieldName}' introuvable.\`);
+                core.warning(`Champ single select '${fieldName}' introuvable.`);
                 return;
               }
 
@@ -185,7 +243,7 @@ jobs:
               );
 
               if (!option) {
-                core.warning(\`Option '\${optionName}' introuvable pour '\${fieldName}'.\`);
+                core.warning(`Option '${optionName}' introuvable pour '${fieldName}'.`);
                 return;
               }
 
@@ -209,21 +267,24 @@ jobs:
                 optionId: option.id
               });
 
-              core.info(\`\${fieldName} = \${optionName}\`);
+              core.info(`${fieldName} = ${optionName}`);
             }
 
             async function updateNumber(fieldName, numberValue) {
-              if (!numberValue) return;
+              if (!numberValue) {
+                core.warning(`Aucune valeur pour ${fieldName}`);
+                return;
+              }
 
               const field = findField(fieldName);
               if (!field) {
-                core.warning(\`Champ '\${fieldName}' introuvable.\`);
+                core.warning(`Champ '${fieldName}' introuvable.`);
                 return;
               }
 
               const parsed = Number(numberValue);
               if (Number.isNaN(parsed)) {
-                core.warning(\`Valeur numérique invalide pour '\${fieldName}': \${numberValue}\`);
+                core.warning(`Valeur numérique invalide pour '${fieldName}': ${numberValue}`);
                 return;
               }
 
@@ -247,9 +308,11 @@ jobs:
                 value: parsed
               });
 
-              core.info(\`\${fieldName} = \${parsed}\`);
+              core.info(`${fieldName} = ${parsed}`);
             }
 
             await updateSingleSelect("Status", values.status);
             await updateNumber("Estimate", values.estimate);
             await updateSingleSelect("Type", values.type);
+
+            core.info("Fin du script");
